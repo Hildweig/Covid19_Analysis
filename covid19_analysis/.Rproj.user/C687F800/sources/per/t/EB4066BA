@@ -1,0 +1,28 @@
+{
+    "id": "EB4066BA",
+    "path": "~/Data analytics/covid19_deaths_analysis/covid19_analysis/covid19_exploration.Rmd",
+    "project_path": "covid19_exploration.Rmd",
+    "type": "r_markdown",
+    "hash": "4237007713",
+    "contents": "",
+    "dirty": false,
+    "created": 1643800682553.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "tempName": "Untitled1",
+        "chunk_output_type": "inline",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "31,0",
+        "scrollLine": "21"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1643817882,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1643817882988,
+    "read_only": false,
+    "read_only_alternatives": []
+}
