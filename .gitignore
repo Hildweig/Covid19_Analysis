@@ -4,3 +4,15 @@
 .Ruserdata
 .xlsx
 .csv
+*.Rproj.user
+*.Rhistory
+*.RData
+*.Ruserdata
+*.xlsx
+*.csv
+/*.Rproj.user
+/*.Rhistory
+/*.RData
+/*.Ruserdata
+/*.xlsx
+/*.csv
