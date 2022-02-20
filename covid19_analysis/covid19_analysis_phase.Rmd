@@ -1,0 +1,69 @@
+---
+title: "Covid Analysis"
+author: "Rym BOUCHETARA"
+date: "2/16/2022"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+library(zoo)
+
+covid_deaths <- read.csv("C:/Users/Snow/Documents/Data analytics/covid19_deaths_analysis/Covid19 Project/covid19_analysis/covid_deaths_jan2020_Feb2022.csv")
+
+countries_data <- read.csv("C:/Users/Snow/Documents/Data analytics/covid19_deaths_analysis/Covid19 Project/covid19_analysis/countries_demographics_jan2020_Feb2022.csv")
+
+covid_deaths$date <- as.Date(covid_deaths$date)
+countries_data$date <- as.Date(countries_data$date)
+```
+
+## Countries with the biggest number of death
+This chart shows the countries with the biggest number of death from January 2020 to February 2022.
+
+```{r}
+
+covid_deaths %>%
+  filter(continent!="") %>%
+  group_by(location) %>%
+  summarize(total_deaths=sum(new_deaths)) %>%                                      
+  arrange(desc(total_deaths)) %>%
+  slice(1:5) %>%
+  mutate(location = fct_reorder(location, total_deaths)) %>%
+  ggplot() +
+  geom_bar(aes(x=total_deaths, y=location, fill=location),stat="identity", width = 0.7) +
+  labs(title = "Top 5 countries with biggest number of deaths",
+       x = "Total Deaths",
+       y = "Country") +
+  theme(plot.title = element_text(hjust = 0.5, size=12, margin=margin(0,0,15,0)))
+
+  
+```
+
+## Deaths progress in top 5 total death countries
+
+```{r}
+countries_with_mosts_death <- c("United States", "Brazil", "India", "Russia", "Mexico")
+
+covid_deaths %>% filter(location==countries_with_mosts_death) %>%
+  ggplot(aes(x=date, y=new_deaths, colour=location)) + geom_line(size=1) +
+  theme_classic() +
+  labs(title = "Covid-19 New Deaths by Country", x= "Days", y= "Daily New Deaths", colour="Country") +
+  theme(plot.title = element_text(hjust = 0.5, size=12, margin=margin(0,0,15,0))) 
+
+```
+
+## Deaths progress in top 5 total death countries
+```{r}
+countries_top_death <- filter(countries_data,location==countries_with_mosts_death)
+  
+countries_top_death %>% group_by(location) %>%
+  summarize(percentage_elders=max(aged_65_older)) %>%
+  ggplot() + 
+  geom_bar(aes(x=location, y=percentage_elders, fill=location),stat="identity", width = 0.7) +
+  theme_classic() +
+  labs(title = "Covid-19 Percentage of Elders Above 65 years Old" , x= "Country", y= "Above 65 elders percentage", colour="Country") +
+  theme(plot.title = element_text(hjust = 0.5, size=12, margin=margin(0,0,15,0))) 
+
+```

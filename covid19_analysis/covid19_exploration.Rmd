@@ -1,32 +1,162 @@
 ---
-title: "R Notebook"
+title: "Covid Data Preparation & Processing"
 output: html_notebook
 ---
-
 
 ```{r}
 # Download libraries
 library(tidyverse)
+library(skimr)
+library(dplyr)
+library(openxlsx)
 
-covid_data <- read.csv("C:/Users/Snow/Documents/Data analytics/covid19_deaths_analysis/owid-covid-data-deaths.csv")
+covid_data <- read.csv("C:/Users/Snow/Documents/Data analytics/covid19_deaths_analysis/owid-covid-data.csv")
 
 head(covid_data)
 ```
 
 ```{r}
 # Summary of the data
-library(skimr)
-
 skim_without_charts(covid_data)
 ```
-We have 238 country registered while there should be in fact 195 country, this proves that there are some errors in the data
 
 ```{r}
-# Download libraries
-library(dplyr)
+# Unique locations
+unique(covid_data$location)
+```
 
-covid_data_tibble <- tibble(contient=covid_data$continent, location=covid_data$location, population=covid_data$population, date=covid_data$date, new_deaths=covid_data$new_deaths)
+We have 238 country registered while there should be in fact 195 country, at first I thought that there are some errors in the data, after further exploration I noticed that some locations are an aggregation of regions, such as "World", Low income", "Lower middle income", "Europe", "Africa', "North America", "South America", "Oceania", "Asia", "High income", "International". Hence for later I want to see if there is any difference between countries and other locations.
 
-# Get the distinct countries
-distinct(covid_data_tibble, location)
+```{r}
+covid_locations <- distinct(tibble(iso_code=covid_data$iso_code, continent=covid_data$continent, location=covid_data$location))
+view(covid_locations)
+head(covid_locations)
+```
+The locations that are not countries have an iso_code starting with "OWID" and there is no continent, so we can use this later when needed.
+Also, the date is a character while it should be a date, so we will start by converting it to a date.
+
+```{r}
+covid_data <- mutate(covid_data,date = as.Date(date))
+```
+
+## 1. Covid deaths
+
+Next we are creating our first tibble which will include covid deaths data:
+
+```{r}
+covid_deaths_tibble <- tibble(iso_code=covid_data$iso_code, continent=covid_data$continent, location=covid_data$location, date=covid_data$date,new_deaths= covid_data$new_deaths, total_deaths=covid_data$total_deaths, new_cases=covid_data$new_cases, total_cases=covid_data$total_cases, population=covid_data$population)
+
+view(covid_deaths_tibble)
+skim_without_charts(covid_deaths_tibble)
+```
+
+Since it has some values are NA in total_deaths and new_deaths, we will replace them by 0, however we will delete the rows where the population is NA.
+
+```{r}
+covid_deaths_tibble <- covid_deaths_tibble %>%
+                      mutate(new_deaths=if_else(is.na(new_deaths),0, new_deaths),
+                      total_deaths=if_else(is.na(total_deaths),0, total_deaths),
+                      new_cases=if_else(is.na(new_cases),0, new_cases),
+                      total_cases=if_else(is.na(total_cases),0, total_cases))
+
+covid_deaths_tibble <- drop_na(covid_deaths_tibble)
+view(covid_deaths_tibble)
+
+skim_without_charts(covid_deaths_tibble)
+```
+
+Now we can save the first csv and excel file
+
+```{r}
+write_csv(covid_deaths_tibble,"covid_deaths_jan2020_Feb2022.csv")
+write.xlsx(covid_deaths_tibble,"covid_deaths_jan2020_Feb2022.xlsx")
+```
+
+## 2. Covid Vaccines 
+Next, we will treat the vaccinations, first creating a tibble, then seeing if there is any NA/Null values, replacing those that we can replace and removing those that we can't correct then saving them into an xslx as well as csv file.
+
+```{r}
+covid_vaccinations_tibble <- tibble(iso_code=covid_data$iso_code, continent=covid_data$continent, location=covid_data$location, date=covid_data$date,new_vaccinations= covid_data$new_vaccinations, total_vaccinations=covid_data$total_vaccinations,people_vaccinated=covid_data$people_vaccinated, people_fully_vaccinated= covid_data$people_fully_vaccinated,new_cases=covid_data$new_cases, total_cases=covid_data$total_cases, population=covid_data$population)
+
+view(covid_vaccinations_tibble)
+
+head(covid_vaccinations_tibble)
+```
+
+Similarly to what we did with the first tibble, we will remove the NA values and replace them with 0 for most columns, however we will delete the rows where the population is NA.
+
+```{r}
+covid_vaccinations_tibble <- covid_vaccinations_tibble %>%
+ mutate(new_vaccinations=if_else(is.na(new_vaccinations),0, new_vaccinations),     total_vaccinations=if_else(is.na(total_vaccinations),0, total_vaccinations),  people_vaccinated=if_else(is.na(people_vaccinated),0, people_vaccinated),  people_fully_vaccinated=if_else(is.na(people_fully_vaccinated),0, people_fully_vaccinated),
+new_cases=if_else(is.na(new_cases),0, new_cases),
+total_cases=if_else(is.na(total_cases),0, total_cases))
+
+covid_vaccinations_tibble <- drop_na(covid_vaccinations_tibble)
+
+view(covid_vaccinations_tibble)
+skim_without_charts(covid_vaccinations_tibble)
+```
+
+Now we can save the csv file
+
+```{r}
+write_csv(covid_vaccinations_tibble,"covid_vaccinations_jan2020_Feb2022.csv")
+write.xlsx(covid_vaccinations_tibble,"covid_vaccinations_jan2020_Feb2022.xlsx")
+```
+
+## 3. Covid Tests
+Next data is the covid tests
+
+```{r}
+covid_tests_tibble <- tibble(iso_code=covid_data$iso_code, continent=covid_data$continent, location=covid_data$location, date=covid_data$date,new_tests=covid_data$new_tests, total_tests=covid_data$total_tests,positive_rate=covid_data$positive_rate,new_cases=covid_data$new_cases, total_cases=covid_data$total_cases, population=covid_data$population)
+
+view(covid_tests_tibble)
+
+head(covid_tests_tibble)
+```
+
+We can see that there is a lot of NA values, we will start by replacing them with 0's and delete NA values of population
+
+```{r}
+covid_tests_tibble <- covid_tests_tibble %>%
+                      mutate(new_tests=if_else(is.na(new_tests),0, new_tests), total_tests=if_else(is.na(total_tests),0, total_tests), positive_rate=if_else(is.na(positive_rate),0, positive_rate),new_cases=if_else(is.na(new_cases),0, new_cases), total_cases=if_else(is.na(total_cases),0, total_cases))
+
+covid_tests_tibble <- drop_na(covid_tests_tibble)
+
+view(covid_tests_tibble)
+
+skim_without_charts(covid_tests_tibble)
+```
+
+Now we can save the csv file
+
+```{r}
+write_csv(covid_tests_tibble,"covid_tests_jan2020_Feb2022.csv")
+write.xlsx(covid_tests_tibble,"covid_tests_jan2020_Feb2022.xlsx")
+```
+
+## 4. Country information
+Here I want some information about the age, health conditions of each population
+```{r}
+countries_demographics_tibble <- tibble(iso_code=covid_data$iso_code, continent=covid_data$continent, date= covid_data$date,location=covid_data$location, population=covid_data$population,stringency_index=covid_data$stringency_index,
+population_density=covid_data$population_density,reproduction_rate=covid_data$reproduction_rate, median_age=covid_data$median_age,aged_65_older=covid_data$aged_65_older, aged_70_older=covid_data$aged_70_older,extreme_poverty=covid_data$extreme_poverty, cardiovasc_death_rate=covid_data$cardiovasc_death_rate, diabetes_prevalence=covid_data$diabetes_prevalence, female_smokers=covid_data$female_smokers, male_smokers=covid_data$male_smokers, life_expectancy=covid_data$life_expectancy)
+
+skim_without_charts(countries_demographics_tibble)
+```
+
+For this data I will just drop all NA and remove duplicates
+
+```{r}
+countries_demographics_tibble <- drop_na(countries_demographics_tibble)
+countries_demographics_tibble <- unique(countries_demographics_tibble)
+
+view(countries_demographics_tibble)
+skim_without_charts(countries_demographics_tibble)
+```
+
+Lastly we will save this data as a new csv
+
+```{r}
+write_csv(countries_demographics_tibble,"countries_demographics_jan2020_Feb2022.csv")
+write.xlsx(countries_demographics_tibble,"countries_demographics_jan2020_Feb2022.xlsx")
 ```
