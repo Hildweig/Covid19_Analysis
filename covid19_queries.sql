@@ -49,7 +49,7 @@ SELECT
 FROM 
     Covid19..['CovidDeaths']
 WHERE
-	iso_code not like '%OWID%'
+	iso_code not like '%OWID%' AND total_cases <> 0
 GROUP BY 
 	location
 ORDER BY
@@ -103,7 +103,7 @@ ORDER BY
 
 
 -- 7/ The countries with highest infection rate
-SELECT
+SELECT TOP 20
 	location, population, MAX(total_cases) as highest_infection_cases, MAX(total_cases/population)*100 as percentage_cases
 FROM
 	Covid19..['CovidDeaths']
@@ -114,9 +114,8 @@ GROUP BY
 ORDER BY
 	percentage_cases DESC
 
-
--- 8/ The countries with highest deaths
-SELECT
+-- 8/ The top 20 countries with highest deaths
+SELECT TOP 20
 	location, population, MAX(CAST(total_deaths AS FLOAT)) as highest_deaths, MAX(CAST(total_deaths AS FLOAT)/population)*100 as percentage_death
 FROM
 	Covid19..['CovidDeaths']
@@ -147,68 +146,66 @@ SELECT
 FROM
 	Covid19..['CovidDeaths']
 WHERE 
-	iso_code not like '%OWID%'
+	iso_code not like '%OWID%' and new_cases <> 0
 GROUP BY 
 	date
 ORDER BY
 	date
 	
--- Total Population VS Vaccinations
+-- 11 / Total Population VS Vaccinations
 
 SELECT
-	dea.continent, dea.location, population, SUM(CAST(new_vaccinations as FLOAT )) as total_vaccinations, SUM(CAST(new_vaccinations as FLOAT ))  / population * 100 as vaccination_rate
+	cil.continent, cil.location, cil.population, SUM(CAST(new_vaccinations as FLOAT )) as total_vaccinations, SUM(CAST(new_vaccinations as FLOAT ))  / cil.population * 100 as vaccination_rate
 FROM
-	Covid19..['CovidDeaths'] dea 
+	Covid19..['CovidLocationsInformation'] cil 
 JOIN 
 	Covid19..['CovidVaccinations'] vac
 ON	
-	dea.location = vac.location AND dea.date = vac.date AND dea.iso_code = vac.iso_code
+	cil.date = vac.date AND cil.iso_code = vac.iso_code
 WHERE 
-	dea.iso_code not like '%OWID%'
+	cil.iso_code not like '%OWID%'
 GROUP BY
-	dea.continent, dea.location, population
+	cil.continent, cil.location, cil.population
 ORDER BY 
-	dea.location
+	cil.location
 
 
--- Total Population vs Vaccinations
--- Shows Percentage of Population that has recieved at least one Covid Vaccine
+-- 12/ Total Population vs Vaccinations Over days and location
 SELECT
-	dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
-	, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (PARTITION BY  dea.Location ORDER BY dea.location, dea.Date) as rolling_people_vaccinated
+	cil.continent, cil.location, cil.date, cil.population, vac.new_vaccinations
+	, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (PARTITION BY  cil.location ORDER BY cil.location, cil.date) as rolling_people_vaccinated
 FROM
-	Covid19..['CovidDeaths'] dea
+	Covid19..['CovidLocationsInformation'] cil
 JOIN
 	Covid19..['CovidVaccinations'] vac
 ON
-	dea.location = vac.location AND dea.date = vac.date
+	cil.iso_code = vac.iso_code AND cil.date = vac.date
 WHERE 
-	dea.iso_code not like '%OWID%'
+	cil.iso_code not like '%OWID%'
 ORDER BY 
-	dea.location, dea.date
+	cil.location, cil.date
 
--- For the percentage we need to make the previous query a CTE first
+-- 13/ For the percentage we need to make the previous query a CTE first
 
 WITH 
 	Population_vs_Vaccination (continent, location, date, population, new_vaccinations, rolling_people_vaccinated)
 AS
 (SELECT
-	dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
-	, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (PARTITION BY  dea.Location ORDER BY dea.location, dea.Date) as rolling_people_vaccinated
+  cil.continent, cil.location, cil.date, cil.population, vac.new_vaccinations, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (PARTITION BY  cil.location ORDER BY cil.location, cil.date) as rolling_people_vaccinated
 FROM
-	Covid19..['CovidDeaths'] dea
+  Covid19..['CovidLocationsInformation'] cil
 JOIN
-	Covid19..['CovidVaccinations'] vac
+  Covid19..['CovidVaccinations'] vac
 ON
-	dea.location = vac.location AND dea.date = vac.date
-WHERE 
-	dea.iso_code not like '%OWID%')
+  cil.iso_code = vac.iso_code AND cil.date = vac.date
+WHERE
+  cil.iso_code not like '%OWID%')
 SELECT 
 	*, (rolling_people_vaccinated/ population)*100 as vaccination_rate
 FROM
 	Population_vs_Vaccination
 
--- We can also make it with a temporar table
+-- 13.2 / We can also make it with a temporar table
 
 DROP Table IF EXISTS #PercentagePopulationVaccinated
 Create Table #PercentagePopulationVaccinated
@@ -223,17 +220,15 @@ rolling_people_vaccinated numeric
 
 INSERT INTO #PercentagePopulationVaccinated 
 SELECT
-	dea.continent, dea.location, dea.date, CONVERT(numeric, dea.population), CONVERT(bigint,vac.new_vaccinations)
-	, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (PARTITION BY  dea.Location ORDER BY dea.location, dea.Date) as rolling_people_vaccinated
+  cil.continent, cil.location, cil.date, cil.population, vac.new_vaccinations, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (PARTITION BY  cil.location ORDER BY cil.location, cil.date) as rolling_people_vaccinated
 FROM
-	Covid19..['CovidDeaths'] dea
+  Covid19..['CovidLocationsInformation'] cil
 JOIN
-	Covid19..['CovidVaccinations'] vac
+  Covid19..['CovidVaccinations'] vac
 ON
-	dea.location = vac.location AND dea.date = vac.date
-WHERE 
-	dea.iso_code not like '%OWID%'
-
+  cil.iso_code = vac.iso_code AND cil.date = vac.date
+WHERE
+  cil.iso_code not like '%OWID%'
 
 SELECT
 	*
@@ -244,18 +239,17 @@ ORDER BY
 
 -- We can also make it with a View
 
-CREATE VIEW PercentPopulationVaccinated AS 
+CREATE VIEW PercentPopulationVaccinated AS (
 SELECT
-	dea.continent, dea.location, dea.date, CONVERT(numeric, dea.population) as population, CONVERT(bigint,vac.new_vaccinations) as new_vaccination
-	, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (PARTITION BY  dea.Location ORDER BY dea.location, dea.Date) as rolling_people_vaccinated
+  cil.continent, cil.location, cil.date, cil.population, vac.new_vaccinations, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (PARTITION BY  cil.location ORDER BY cil.location, cil.date) as rolling_people_vaccinated
 FROM
-	Covid19..['CovidDeaths'] dea
+  Covid19..['CovidLocationsInformation'] cil
 JOIN
-	Covid19..['CovidVaccinations'] vac
+  Covid19..['CovidVaccinations'] vac
 ON
-	dea.location = vac.location AND dea.date = vac.date
-WHERE 
-	dea.iso_code not like '%OWID%'
+  cil.iso_code = vac.iso_code AND cil.date = vac.date
+WHERE
+  cil.iso_code not like '%OWID%')
 
 
 SELECT
